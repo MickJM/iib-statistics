@@ -8,11 +8,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.ibm.mq.MQException;
+import com.ibm.mq.MQGetMessageOptions;
+import com.ibm.mq.MQQueue;
 import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.headers.MQDataException;
@@ -20,9 +25,12 @@ import com.ibm.mq.headers.pcf.PCFMessageAgent;
 
 import io.micrometer.core.instrument.Tags;
 //import maersk.com.mq.metrics.mqmetrics.MQBase.MQPCFConstants;
+import maersk.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 
 @Component
-public class MQMetricsQueueManager extends MQBase {
+public class MQMetricsQueueManager {
+
+	private static final String MQPREFIX = "mq:";
 
 	static Logger log = Logger.getLogger(MQMetricsQueueManager.class);
 				
@@ -114,6 +122,9 @@ public class MQMetricsQueueManager extends MQBase {
 		return this.local;
 	}
 	
+	@Autowired
+	public MQBase base;
+	
     /*
      *  MAP details for the metrics
      */
@@ -137,8 +148,13 @@ public class MQMetricsQueueManager extends MQBase {
 		return ret;
 	}
 	
-    private MQQueueManager queManager = null;
-    private PCFMessageAgent messageAgent = null;
+	@Autowired
+    private MQQueueManager queManager;
+	
+	@Autowired
+    private MQGetMessageOptions gmo;
+	
+    //private PCFMessageAgent messageAgent = null;
     
     /*
      * Constructor
@@ -149,6 +165,7 @@ public class MQMetricsQueueManager extends MQBase {
 	/*
 	 * Create an MQQueueManager object
 	 */
+	@Bean("queueManager")
 	public MQQueueManager createQueueManager() throws MQException, MQDataException {
 
 		Hashtable<String, Comparable> env = null;
@@ -156,7 +173,7 @@ public class MQMetricsQueueManager extends MQBase {
 		if (!isRunningLocal()) { 
 			
 			getEnvironmentVariables();
-			if (getDebugLevel() == LEVEL.INFO) { log.info("Attempting to connect using a client connection"); }
+			if (base.getDebugLevel() == LEVEL.INFO) { log.info("Attempting to connect using a client connection"); }
 			
 			env = new Hashtable<String, Comparable>();
 			env.put(MQConstants.HOST_NAME_PROPERTY, getHostName());
@@ -181,13 +198,13 @@ public class MQMetricsQueueManager extends MQBase {
 	
 			if (isMultiInstance()) {
 				if (getOnceOnly()) {
-					if (getDebugLevel() == LEVEL.INFO) { 
+					if (base.getDebugLevel() == LEVEL.INFO) { 
 						log.info("MQ Metrics is running in multiInstance mode");
 					}
 				}
 			}
 			
-			if (getDebugLevel() == LEVEL.DEBUG) {
+			if (base.getDebugLevel() == LEVEL.DEBUG) {
 				log.debug("Host		: " + getHostName());
 				log.debug("Channel	: " + getChannelName());
 				log.debug("Port		: " + getPort());
@@ -217,13 +234,13 @@ public class MQMetricsQueueManager extends MQBase {
 				}
 			
 			} else {
-				if (getDebugLevel() == LEVEL.DEBUG) {
+				if (base.getDebugLevel() == LEVEL.DEBUG) {
 					log.debug("SSL is NOT enabled ....");
 				}
 			}
 			
 	        //System.setProperty("javax.net.debug","all");
-			if (getDebugLevel() == LEVEL.DEBUG) {
+			if (base.getDebugLevel() == LEVEL.DEBUG) {
 				if (!StringUtils.isEmpty(this.truststore)) {
 					log.debug("TrustStore       : " + this.truststore);
 					log.debug("TrustStore Pass  : ********");
@@ -235,7 +252,7 @@ public class MQMetricsQueueManager extends MQBase {
 				}
 			}
 		} else {
-			if (getDebugLevel() == LEVEL.DEBUG) {
+			if (base.getDebugLevel() == LEVEL.DEBUG) {
 				log.debug("Attemping to connect using local bindings");
 				log.debug("Queue Man	: " + this.queueManager);
 			}
@@ -264,6 +281,66 @@ public class MQMetricsQueueManager extends MQBase {
 		return qmgr;
 	}
 
+	@Bean("setmessageoptions")
+	@DependsOn("queuemanager")
+	public MQGetMessageOptions setMessageOptions() {
+
+		log.info("Creating get message options");
+
+		MQGetMessageOptions gmo = new MQGetMessageOptions();
+		gmo.options = MQConstants.MQGMO_WAIT 
+			+ MQConstants.MQGMO_FAIL_IF_QUIESCING 
+			+ MQConstants.MQGMO_CONVERT
+			+ MQConstants.MQGMO_SYNCPOINT
+			+ MQConstants.MQGMO_PROPERTIES_IN_HANDLE;
+		/*
+		 * if we want to process the MQRFH2 header
+		 */
+		//if (this.includeRFH2) {
+		//		this.gmo.options += MQConstants.MQGMO_PROPERTIES_FORCE_MQRFH2;
+		//}
+		
+		// wait 'x' milli-seconds until we get something
+		gmo.waitInterval = 5000;
+				//this.waitInterval;
+		return gmo;
+		
+	}
+	
+	/*
+	 * Open the queue
+	 */
+	@Bean("openqueueforreading")
+	@DependsOn("getmessageoptions")
+	public MQQueue openQueueForReading(String qName) {
+		
+		log.info("Opening queue " + qName + " for reading");
+		
+		MQQueue inQueue = null;
+		int openOptions = MQConstants.MQOO_FAIL_IF_QUIESCING 
+				+ MQConstants.MQOO_INQUIRE 
+				+ MQConstants.MQOO_INPUT_SHARED;
+
+		try {
+			inQueue = this.queManager.accessQueue(qName, openOptions);
+			
+		} catch (MQException e) {
+			log.error("Unable to open queue : " + qName);
+			log.error("Message : " + e.getMessage() );
+			System.exit(1);
+		}
+			
+		return inQueue;
+		
+	}
+
+	/*
+	 * Read messages ...
+	 */
+	public String readMessages() {
+		return "New message";
+	}
+	
 	/*
 	 * Establish a PCF agent
 	 */	
@@ -347,7 +424,7 @@ public class MQMetricsQueueManager extends MQBase {
 		
 		AtomicInteger rMode = runModeMap.get(runMode);
 		if (rMode == null) {
-			runModeMap.put(runMode, meterRegistry.gauge(runMode, 
+			runModeMap.put(runMode, base.meterRegistry.gauge(runMode, 
 					Tags.of("queueManagerName", this.queueManager),
 					new AtomicInteger(mode))
 					);
@@ -363,9 +440,9 @@ public class MQMetricsQueueManager extends MQBase {
 	public void CloseConnection(MQQueueManager qm, PCFMessageAgent ma) {
 		
     	try {
-    		if (qm.isConnected()) {
-	    		if (getDebugLevel() == LEVEL.DEBUG) { log.debug("Closing MQ Connection "); }
-    			qm.disconnect();
+    		if (this.queManager.isConnected()) {
+	    		if (base.getDebugLevel() == LEVEL.DEBUG) { log.debug("Closing MQ Connection "); }
+    			this.queManager.disconnect();
     		}
     	} catch (Exception e) {
     		// do nothing
@@ -373,7 +450,7 @@ public class MQMetricsQueueManager extends MQBase {
     	
     	try {
 	    	if (ma != null) {
-	    		if (getDebugLevel() == LEVEL.DEBUG) { log.debug("Closing PCF agent "); }
+	    		if (base.getDebugLevel() == LEVEL.DEBUG) { log.debug("Closing PCF agent "); }
 	        	ma.disconnect();
 	    	}
     	} catch (Exception e) {

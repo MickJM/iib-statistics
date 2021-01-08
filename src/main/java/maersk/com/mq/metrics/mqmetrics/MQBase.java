@@ -13,10 +13,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 public class MQBase implements MQPCFConstants {
 
+
 	@Autowired
 	public MeterRegistry meterRegistry;
-
-	protected static final String MQPREFIX = "mq:";
 
 	//@Value("${application.debug:false}")
     //protected boolean _debug;
@@ -44,15 +43,26 @@ public class MQBase implements MQPCFConstants {
 	}
 	
 	@Value("${ibm.mq.clearMetrics:10}")
-	protected int CONST_CLEARMETRICS;
-
-	protected int clearMetrics;
-
+	private int CONST_CLEARMETRICS;
+	public int getClearMetrics() {
+		return this.CONST_CLEARMETRICS;
+	}
 	
+	private int clearMetrics;
+	
+	public synchronized void setCounter(int v) {
+		this.clearMetrics = v;
+	}
+	public synchronized void setCounter() {
+		this.clearMetrics++;
+	}
+	public synchronized int getCounter() {
+		return this.clearMetrics;
+	}
 	/*
 	 * Delete the appropriate metric
 	 */
-	protected void deleteMetricEntry(String lookup) {
+	public void deleteMetricEntry(String lookup) {
 		
 		List<Meter.Id> meterIds = null;
 		meterIds = this.meterRegistry.getMeters().stream()

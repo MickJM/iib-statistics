@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 //@ComponentScan("maersk.com.mq.json.controller.JSONController")
 // ,"maersk.com.mq.json.controller"
 @ComponentScan(basePackages = { "maersk.com.mq.metrics.mqmetrics"} )
+@ComponentScan("maersk.com.mq.pcf.channel.pcfListener")
 @SpringBootApplication
 @EnableScheduling
 public class MQMetricsApplication {

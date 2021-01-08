@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -28,12 +29,15 @@ import com.ibm.mq.headers.pcf.PCFMessageAgent;
 
 import io.micrometer.core.instrument.Tags;
 import maersk.com.mq.metrics.mqmetrics.MQBase;
+import maersk.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 import maersk.com.mq.metrics.mqmetrics.MQPCFConstants;
 
 @Component
-public class pcfListener extends MQBase {
+public class pcfListener  {
 
-    private Logger log = Logger.getLogger(this.getClass());
+    private static final String MQPREFIX = "mq:";
+
+	private Logger log = Logger.getLogger(this.getClass());
 
 	private String queueManager;
     private PCFMessageAgent messageAgent;
@@ -78,9 +82,14 @@ public class pcfListener extends MQBase {
 	@Value("${ibm.mq.objects.listeners.types.include}")
     private String[] includeTypes;
 
+	@Autowired
+	public MQBase base;
+	
 	// Constructor
     public pcfListener() {
-		if (!(getDebugLevel() == LEVEL.NONE)) { log.info("pcfListener: Object created"); }
+    	if (base != null) {
+    		if (!(base.getDebugLevel() == LEVEL.NONE)) { log.info("pcfListener: Object created"); }
+    	}
     	setTypeList();
     }
 
@@ -100,16 +109,16 @@ public class pcfListener extends MQBase {
      */
 	public void UpdateListenerMetrics() throws MQException, IOException, MQDataException {
 
-		if (getDebugLevel() == LEVEL.DEBUG
-				|| (getDebugLevel() == LEVEL.TRACE))  { log.info("pcfListener: inquire listener request"); }
+		if (base.getDebugLevel() == LEVEL.DEBUG
+				|| (base.getDebugLevel() == LEVEL.TRACE))  { log.info("pcfListener: inquire listener request"); }
 		
 		/*
 		 * Clear the metrics every 'x' iteration
 		 */
-		this.clearMetrics++;
-		if (this.clearMetrics % CONST_CLEARMETRICS == 0) {
-			this.clearMetrics = 0;
-			if (getDebugLevel() == LEVEL.TRACE) {
+		base.setCounter();
+		if (base.getCounter() % base.getClearMetrics() == 0) {
+			base.setCounter(0);
+			if (base.getDebugLevel() == LEVEL.TRACE) {
 				log.trace("Clearing listener metrics");
 			}
 			resetMetrics();
@@ -128,10 +137,10 @@ public class pcfListener extends MQBase {
 			pcfResponse = this.messageAgent.send(pcfRequest);
 
 		} catch (Exception e) {
-			if (getDebugLevel() == LEVEL.WARN) { log.warn("pcfListener: no response returned - " + e.getMessage()); }
+			if (base.getDebugLevel() == LEVEL.WARN) { log.warn("pcfListener: no response returned - " + e.getMessage()); }
 			
 		}
-		if (getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: inquire listener response"); }
+		if (base.getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: inquire listener response"); }
         int[] pcfStatAttrs = { 	MQConstants.MQIACF_ALL };
         
 		/*
@@ -152,7 +161,7 @@ public class pcfListener extends MQBase {
 					
 					// Correct listener type ? Only interested in TCP
 					if (checkType(typeName)) {
-						if (getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: valid type"); }
+						if (base.getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: valid type"); }
 	
 						PCFMessage pcfReq = new PCFMessage(MQConstants.MQCMD_INQUIRE_LISTENER_STATUS);
 						pcfReq.addParameter(MQConstants.MQCACH_LISTENER_NAME, listenerName);
@@ -170,7 +179,7 @@ public class pcfListener extends MQBase {
 
 							AtomicInteger qmListener = listenerMap.get(lookupListener + "_" + this.queueManager);
 							if (qmListener == null) {
-								listenerMap.put(lookupListener + "_" + this.queueManager, meterRegistry.gauge(lookupListener, 
+								listenerMap.put(lookupListener + "_" + this.queueManager, base.meterRegistry.gauge(lookupListener, 
 										Tags.of("queueManagerName", this.queueManager,
 												"listenerName", listenerName,
 												"type", Integer.toString(type),
@@ -185,7 +194,7 @@ public class pcfListener extends MQBase {
 							if (pcfe.reasonCode == MQConstants.MQRCCF_LSTR_STATUS_NOT_FOUND) {
 								AtomicInteger qmListener = listenerMap.get(lookupListener + "_" + this.queueManager);
 								if (qmListener == null) {
-									listenerMap.put(lookupListener + "_" + this.queueManager, meterRegistry.gauge(lookupListener, 
+									listenerMap.put(lookupListener + "_" + this.queueManager, base.meterRegistry.gauge(lookupListener, 
 											Tags.of("queueManagerName", this.queueManager,
 													"listenerName", listenerName,
 													"type", Integer.toString(type),
@@ -199,7 +208,7 @@ public class pcfListener extends MQBase {
 							if (pcfe.reasonCode == MQConstants.MQRC_UNKNOWN_OBJECT_NAME) {								
 								AtomicInteger qmListener = listenerMap.get(lookupListener + "_" + this.queueManager);
 								if (qmListener == null) {
-									listenerMap.put(lookupListener + "_" + this.queueManager, meterRegistry.gauge(lookupListener, 
+									listenerMap.put(lookupListener + "_" + this.queueManager, base.meterRegistry.gauge(lookupListener, 
 											Tags.of("queueManagerName", this.queueManager,
 													"listenerName", listenerName,
 													"type", Integer.toString(type),
@@ -215,7 +224,7 @@ public class pcfListener extends MQBase {
 						} catch (Exception e) {
 							AtomicInteger qmListener = listenerMap.get(lookupListener + "_" + this.queueManager);
 							if (qmListener == null) {
-								listenerMap.put(lookupListener + "_" + this.queueManager, meterRegistry.gauge(lookupListener, 
+								listenerMap.put(lookupListener + "_" + this.queueManager, base.meterRegistry.gauge(lookupListener, 
 										Tags.of("queueManagerName", this.queueManager,
 												"listenerName", listenerName,
 												"type", Integer.toString(type),
@@ -230,7 +239,7 @@ public class pcfListener extends MQBase {
 				}
 	        }
 		} catch (Exception e) {
-			if (getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: unable to get listener metrcis " + e.getMessage()); }
+			if (base.getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: unable to get listener metrcis " + e.getMessage()); }
 			
 		}
 	}
@@ -300,7 +309,7 @@ public class pcfListener extends MQBase {
 	 * Allow access to delete the metrics
 	 */
 	public void resetMetrics() {
-		if (getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: resetting metrics"); }
+		if (base.getDebugLevel() == LEVEL.TRACE) { log.trace("pcfListener: resetting metrics"); }
 		deleteMetrics();
 	}
 	
@@ -308,7 +317,7 @@ public class pcfListener extends MQBase {
 	 * Delete metrics
 	 */
 	private void deleteMetrics() {
-		deleteMetricEntry(lookupListener);
+		base.deleteMetricEntry(lookupListener);
 		this.listenerMap.clear();
 	}	
 	
