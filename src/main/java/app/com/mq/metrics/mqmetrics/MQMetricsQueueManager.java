@@ -1,4 +1,4 @@
-package maersk.com.mq.metrics.mqmetrics;
+package app.com.mq.metrics.mqmetrics;
 
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -23,9 +23,8 @@ import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.headers.MQDataException;
 import com.ibm.mq.headers.pcf.PCFMessageAgent;
 
+import app.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 import io.micrometer.core.instrument.Tags;
-//import maersk.com.mq.metrics.mqmetrics.MQBase.MQPCFConstants;
-import maersk.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 
 @Component
 public class MQMetricsQueueManager {

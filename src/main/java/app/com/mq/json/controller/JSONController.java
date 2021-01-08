@@ -1,4 +1,4 @@
-package maersk.com.mq.json.controller;
+package app.com.mq.json.controller;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import app.com.mq.json.entities.*;
+import app.com.mq.metrics.mqmetrics.MQBase;
+import app.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
@@ -26,10 +29,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.Meter.Id;
-
-import maersk.com.mq.json.entities.*;
-import maersk.com.mq.metrics.mqmetrics.MQBase;
-import maersk.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 
 @RestController
 @ComponentScan

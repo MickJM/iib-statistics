@@ -1,4 +1,4 @@
-package maersk.com.mq.json.entities;
+package app.com.mq.json.entities;
 
 import java.util.List;
 

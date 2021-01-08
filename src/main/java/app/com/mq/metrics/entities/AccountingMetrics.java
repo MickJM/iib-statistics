@@ -1,4 +1,4 @@
-package maersk.com.mq.metrics.entities;
+package app.com.mq.metrics.entities;
 
 public class AccountingMetrics {
 

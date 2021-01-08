@@ -1,4 +1,4 @@
-package maersk.com.mq.metrics.mqmetrics;
+package app.com.mq.metrics.mqmetrics;
 
 import static org.junit.Assert.assertTrue;
 
@@ -12,6 +12,8 @@ import com.ibm.mq.MQException;
 import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.headers.MQDataException;
 import com.ibm.mq.headers.pcf.PCFMessageAgent;
+
+import app.com.mq.metrics.mqmetrics.MQMetricsQueueManager;
 
 //@RunWith(SpringRunner.class)
 //@ActiveProfiles("test")

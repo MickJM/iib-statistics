@@ -1,4 +1,4 @@
-package maersk.com.mq.metrics.mqmetrics;
+package app.com.mq.metrics.mqmetrics;
 
 /*
  * Copyright 2019
@@ -30,14 +30,15 @@ import com.ibm.mq.MQException;
 import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.headers.MQDataException;
 import com.ibm.mq.headers.pcf.PCFMessageAgent;
+
+import app.com.mq.json.controller.JSONController;
+import app.com.mq.metrics.mqmetrics.MQBase.LEVEL;
+import app.com.mq.pcf.listener.pcfListener;
+import app.com.mq.pcf.queuemanager.pcfQueueManager;
+
 import com.ibm.mq.headers.pcf.PCFException;
 
 import java.util.concurrent.Executor;
-
-import maersk.com.mq.pcf.queuemanager.pcfQueueManager;
-import maersk.com.mq.pcf.listener.pcfListener;
-import maersk.com.mq.json.controller.JSONController;
-import maersk.com.mq.metrics.mqmetrics.MQBase.LEVEL;
 
 @Component
 @EnableAsync
